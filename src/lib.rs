@@ -1,11 +1,9 @@
-use events::{BinlogEvent, BinlogParsedEvent};
-
 pub mod collectors;
 pub mod dispatchers;
 pub mod transformers;
 
+pub mod event;
 pub mod event_hub;
-pub mod events;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ComponentKind {
@@ -17,11 +15,6 @@ pub enum ComponentKind {
 pub trait ComponentApi: 'static + Send + Sync {
     fn id(&self) -> &str;
     fn kind(&self) -> ComponentKind;
-}
-
-pub enum Event {
-    Binlog(BinlogEvent),
-    BinlogParsed(BinlogParsedEvent),
 }
 
 #[cfg(test)]

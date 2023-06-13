@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 
-use crate::{ComponentApi, ComponentKind, Event};
+use crate::{event::Event, ComponentApi, ComponentKind};
 
 #[async_trait]
 pub trait EventHubApi {
