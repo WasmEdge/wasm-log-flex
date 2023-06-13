@@ -1,21 +1,20 @@
 use std::sync::Arc;
 
-use crate::{
-    event::Value,
-    event_hub::{EventHub, EventHubApi},
-    ComponentApi, ComponentKind,
-};
+use wlf_core::{ComponentApi, ComponentKind, EventHub, EventHubApi, Value};
 
-pub struct BinlogTableParser;
-impl ComponentApi for BinlogTableParser {
+pub struct BinlogParser;
+
+impl ComponentApi for BinlogParser {
     fn id(&self) -> &str {
         "BinlogTableParser"
     }
+
     fn kind(&self) -> ComponentKind {
         ComponentKind::Transformer
     }
 }
-impl BinlogTableParser {
+
+impl BinlogParser {
     pub async fn start_parsing(self, hub: Arc<EventHub>) {
         while let Ok(mut event) = hub.poll_event(self.id()).await {
             let Some(Value::String(sql)) = event.value.pointer("/sql") else {

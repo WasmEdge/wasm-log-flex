@@ -1,22 +1,20 @@
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 
 use tokio::time::sleep;
-
-use crate::{
-    event::{Event, EventMeta, Value},
-    event_hub::{EventHub, EventHubApi},
-    ComponentApi, ComponentKind,
-};
+use wlf_core::{ComponentApi, ComponentKind, Event, EventHub, EventHubApi, EventMeta, Value};
 
 pub struct BinlogCollector;
+
 impl ComponentApi for BinlogCollector {
     fn id(&self) -> &str {
         "BinlogCollector"
     }
+
     fn kind(&self) -> ComponentKind {
         ComponentKind::Collector
     }
 }
+
 impl BinlogCollector {
     pub async fn start_collecting(self, hub: Arc<EventHub>) {
         loop {

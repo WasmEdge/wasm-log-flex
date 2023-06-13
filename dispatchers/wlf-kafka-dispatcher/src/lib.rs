@@ -1,20 +1,31 @@
-pub mod collectors;
-pub mod dispatchers;
-pub mod transformers;
+use std::sync::Arc;
 
-pub mod event;
-pub mod event_hub;
+use wlf_core::{ComponentApi, ComponentKind, EventHub, EventHubApi, Value};
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum ComponentKind {
-    Collector,
-    Transformer,
-    Dispatcher,
+pub struct KafkaDispatcher;
+
+impl ComponentApi for KafkaDispatcher {
+    fn id(&self) -> &str {
+        "KafkaMysqlTableDispatcher"
+    }
+
+    fn kind(&self) -> ComponentKind {
+        ComponentKind::Dispatcher
+    }
 }
 
-pub trait ComponentApi: 'static + Send + Sync {
-    fn id(&self) -> &str;
-    fn kind(&self) -> ComponentKind;
+impl KafkaDispatcher {
+    pub async fn start_dispatching(self, hub: Arc<EventHub>) {
+        while let Ok(event) = hub.poll_event(self.id()).await {
+            let Some(Value::String(table)) = event.value.pointer("/table") else {
+                eprintln!("no `table` field or `table` is not string, event: {event:?}");
+                continue;
+            };
+
+            // dispatch event to corresponding kafka table
+            println!("{:?} is dispatched to {} topic", event, table);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -23,12 +34,9 @@ mod tests {
 
     use tokio::time::sleep;
 
-    use crate::{
-        collectors::binlog_collector::BinlogCollector,
-        dispatchers::kafka_mysql_table_dispatcher::KafkaMysqlTableDispatcher,
-        event_hub::{EventHub, EventHubApi},
-        transformers::binlog_parser::BinlogTableParser,
-    };
+    use super::*;
+    use wlf_binlog_collector::BinlogCollector;
+    use wlf_binlog_parser::BinlogParser;
 
     #[tokio::test]
     async fn start_log_flex() {
@@ -38,8 +46,8 @@ mod tests {
         // create a collector, a transformer, and a dispatcher first
         // register them in the `EventHub`
         let collector = BinlogCollector;
-        let transformer = BinlogTableParser;
-        let dispatcher = KafkaMysqlTableDispatcher;
+        let transformer = BinlogParser;
+        let dispatcher = KafkaDispatcher;
         hub.register_component(&collector);
         hub.register_component(&transformer);
         hub.register_component(&dispatcher);
