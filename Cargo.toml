@@ -8,4 +8,6 @@ members = [
   "transformers/wlf-binlog-parser",
   # dispatchers
   "dispatchers/wlf-kafka-dispatcher",
+  # demos
+  "demos",
 ]

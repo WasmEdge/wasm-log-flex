@@ -9,6 +9,7 @@ pub struct Event {
 }
 
 /// `Value` is a json-like nested structure with fields useful for recording a log, such as `TimeStamp` and `Level`
+// TODO: create a macro for easier construction
 #[derive(Debug)]
 pub enum Value {
     Integer(i64),

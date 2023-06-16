@@ -8,5 +8,3 @@ edition = "2021"
 [dependencies]
 wlf-core = { path = "../../wlf-core" }
 tokio = { version = "1", features = ["rt", "time", "test-util", "macros"] }
-wlf-binlog-collector = { path = "../../collectors/wlf-binlog-collector" }
-wlf-binlog-parser = { path = "../../transformers/wlf-binlog-parser" }

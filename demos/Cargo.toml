@@ -1,0 +1,13 @@
+[package]
+name = "demos"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+wlf-core = { path = "../wlf-core" }
+wlf-binlog-collector = { path = "../collectors/wlf-binlog-collector" }
+wlf-binlog-parser = { path = "../transformers/wlf-binlog-parser" }
+wlf-kafka-dispatcher = { path = "../dispatchers/wlf-kafka-dispatcher" }
+tokio = { version = "1", features = ["rt", "time", "test-util", "macros"] }

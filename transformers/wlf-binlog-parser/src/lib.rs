@@ -2,11 +2,14 @@ use std::sync::Arc;
 
 use wlf_core::{ComponentApi, ComponentKind, EventHub, EventHubApi, Value};
 
-pub struct BinlogParser;
+pub struct BinlogParser {
+    id: String,
+    destination: String,
+}
 
 impl ComponentApi for BinlogParser {
     fn id(&self) -> &str {
-        "BinlogTableParser"
+        self.id.as_str()
     }
 
     fn kind(&self) -> ComponentKind {
@@ -15,6 +18,12 @@ impl ComponentApi for BinlogParser {
 }
 
 impl BinlogParser {
+    pub fn new(id: impl Into<String>, destination: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            destination: destination.into(),
+        }
+    }
     pub async fn start_parsing(self, hub: Arc<EventHub>) {
         while let Ok(mut event) = hub.poll_event(self.id()).await {
             let Some(Value::String(sql)) = event.value.pointer("/sql") else {
@@ -32,7 +41,7 @@ impl BinlogParser {
 
             object.insert("table".to_string(), Value::String(table));
 
-            hub.send_event(event, "KafkaMysqlTableDispatcher")
+            hub.send_event(event, self.destination.as_str())
                 .await
                 .expect("can't send out event");
         }
