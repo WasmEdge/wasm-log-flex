@@ -7,4 +7,18 @@ edition = "2021"
 
 [dependencies]
 wlf-core = { path = "../../wlf-core" }
-tokio = { version = "1", features = ["rt", "time", "test-util", "macros"] }
+utils = { path = "../../utils" }
+tokio_wasi = { version = "1", features = [
+  "rt",
+  "time",
+  "test-util",
+  "macros",
+  "io-util",
+] }
+mysql_cdc = "0.2.0"
+thiserror = "1.0.40"
+tracing = "0.1.37"
+futures-core = { version = "0.3", default-features = false }
+futures-util = { version = "0.3.28" }
+chrono = "0.4.26"
+sqlparser = { version = "0.35.0", features = ["visitor"] }

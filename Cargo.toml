@@ -1,13 +1,16 @@
 [workspace]
-
 members = [
   "wlf-core",
   # collectors
   "collectors/wlf-binlog-collector",
   # transformers
-  "transformers/wlf-binlog-parser",
+  "transformers/wlf-binlog-filter",
   # dispatchers
   "dispatchers/wlf-kafka-dispatcher",
-  # demos
+  # others
   "demos",
+  "utils",
 ]
+
+[patch.crates-io]
+mysql_cdc = { git = 'https://github.com/markcty/mysql_cdc' }

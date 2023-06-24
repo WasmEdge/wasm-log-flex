@@ -1,10 +1,11 @@
 mod event;
-mod event_hub;
+pub mod event_hub;
+mod value;
 
-pub use event::{Event, EventMeta, LogLevel, Value};
-pub use event_hub::{EventHub, EventHubApi};
+pub use event::{Event, EventMeta};
+pub use value::{LogLevel, Value};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ComponentKind {
     Collector,
     Transformer,

@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use flume::{RecvError, SendError};
 
 use crate::{event::Event, ComponentApi, ComponentKind};
+use thiserror::Error;
+use tracing::error;
 
 #[async_trait]
 pub trait EventHubApi {
@@ -11,11 +14,14 @@ pub trait EventHubApi {
     fn register_component(&mut self, collector: &impl ComponentApi);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum Error {
-    NoSuchComponent,
+    #[error("no such component {0}")]
+    NoSuchComponent(String),
+    #[error("wrong component kind")]
     WrongComponentKind,
-    Internal,
+    #[error("internal error, {0}")]
+    Internal(String),
 }
 
 pub struct EventHub {
@@ -46,43 +52,36 @@ impl EventHub {
 impl EventHubApi for EventHub {
     async fn send_event(&self, event: Event, component_id: &str) -> Result<(), Error> {
         let r = self.registry.get(component_id).ok_or_else(|| {
-            eprintln!("can't send event to component {component_id}, component does not exist or is a Collector");
-            Error::NoSuchComponent
+            error!("can't send event to component {component_id}, component does not exist");
+            Error::NoSuchComponent(component_id.to_string())
         })?;
         let tx = match r {
             ComponentRecord::Collector => {
-                eprint!("can't send an event to collector");
+                error!("can't send an event to collector");
                 return Err(Error::WrongComponentKind);
             }
             ComponentRecord::Dispatcher { tx, .. } | ComponentRecord::Transformer { tx, .. } => tx,
         };
-        tx.send_async(event).await.map_err(|e| {
-            eprintln!("can't send event to next component, internal channel error, {e}");
-            Error::Internal
-        })
+        tx.send_async(event).await?;
+        Ok(())
     }
     async fn poll_event(&self, component_id: &str) -> Result<Event, Error> {
         let r = self.registry.get(component_id).ok_or_else(|| {
-            eprintln!("can't send event to component {component_id}, component does not exist or is a Collector");
-            Error::NoSuchComponent
+            error!("can't send event to component {component_id}, component does not exist");
+            Error::NoSuchComponent(component_id.to_string())
         })?;
         let rx = match r {
             ComponentRecord::Collector => {
-                eprint!("collector can't receive an event");
+                error!("collector can't receive an event");
                 return Err(Error::WrongComponentKind);
             }
             ComponentRecord::Dispatcher { rx, .. } | ComponentRecord::Transformer { rx, .. } => rx,
         };
-        rx.recv_async().await.map_err(|e| {
-            eprintln!(
-                "can't receive event for component {component_id}, internal channel error, {e}"
-            );
-            Error::Internal
-        })
+        Ok(rx.recv_async().await?)
     }
     fn register_component(&mut self, component: &impl ComponentApi) {
         if self.registry.contains_key(component.id()) {
-            eprintln!("component has already been registered");
+            error!("component {} has already been registered", component.id());
             return;
         }
         match component.kind() {
@@ -111,5 +110,17 @@ impl EventHubApi for EventHub {
 impl Default for EventHub {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<T> From<SendError<T>> for Error {
+    fn from(_value: SendError<T>) -> Self {
+        Error::Internal("failed to send event".to_string())
+    }
+}
+
+impl From<RecvError> for Error {
+    fn from(_value: RecvError) -> Self {
+        Error::Internal("failed to receive event".to_string())
     }
 }

@@ -1,21 +1,29 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
-use tokio::time::sleep;
-
-use wlf_binlog_collector::BinlogCollector;
-use wlf_binlog_parser::BinlogParser;
-use wlf_core::{EventHub, EventHubApi};
+use wlf_binlog_collector::{BinlogCollector, BinlogOptions, ReplicaOptions, SslMode};
+use wlf_binlog_filter::BinlogFilter;
+use wlf_core::event_hub::{EventHub, EventHubApi};
 use wlf_kafka_dispatcher::KafkaDispatcher;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
+    tracing_subscriber::fmt::init();
     // create an event hub
     let mut hub = EventHub::new();
 
     // create a collector, a transformer, and a dispatcher first
     // register them in the `EventHub`
-    let collector = BinlogCollector::new("binlog_collector", "binlog_parser");
-    let transformer = BinlogParser::new("binlog_parser", "kafka_dispatcher");
+    let options = ReplicaOptions {
+        username: String::from("root"),
+        password: String::from("password"),
+        blocking: true,
+        ssl_mode: SslMode::Disabled,
+        binlog: BinlogOptions::from_end(),
+        ..Default::default()
+    };
+    let collector = BinlogCollector::new("binlog_collector", "binlog_parser", options);
+
+    let transformer = BinlogFilter::new("binlog_parser", "kafka_dispatcher");
     let dispatcher = KafkaDispatcher::new("kafka_dispatcher");
     hub.register_component(&collector);
     hub.register_component(&transformer);
@@ -24,19 +32,25 @@ async fn main() {
     // start all the components
     let hub = Arc::new(hub);
     let hub_arc = Arc::clone(&hub);
-    tokio::spawn(async move {
-        collector.start_collecting(hub_arc).await;
+    tokio::task::spawn(async move {
+        collector
+            .start_collecting(hub_arc)
+            .await
+            .expect("collector exit unexpectedly");
     });
     let hub_arc = Arc::clone(&hub);
     tokio::spawn(async move {
-        transformer.start_parsing(hub_arc).await;
+        transformer
+            .start_filtering(hub_arc)
+            .await
+            .expect("filter exit unexpectedly");
     });
     let hub_arc = Arc::clone(&hub);
-    tokio::spawn(async move {
+    let handle = tokio::spawn(async move {
         dispatcher.start_dispatching(hub_arc).await;
     });
 
     // should output mysql table event is forwarded to ...
 
-    sleep(Duration::from_secs(10)).await;
+    handle.await.expect("failed");
 }

@@ -8,6 +8,14 @@ edition = "2021"
 [dependencies]
 wlf-core = { path = "../wlf-core" }
 wlf-binlog-collector = { path = "../collectors/wlf-binlog-collector" }
-wlf-binlog-parser = { path = "../transformers/wlf-binlog-parser" }
+wlf-binlog-filter = { path = "../transformers/wlf-binlog-filter" }
 wlf-kafka-dispatcher = { path = "../dispatchers/wlf-kafka-dispatcher" }
-tokio = { version = "1", features = ["rt", "time", "test-util", "macros"] }
+tokio_wasi = { version = "1", features = [
+  "rt",
+  "time",
+  "test-util",
+  "macros",
+  "io-util",
+] }
+futures-core = { version = "0.3", default-features = false }
+tracing-subscriber = "0.3.17"

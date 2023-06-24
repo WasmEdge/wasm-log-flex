@@ -10,4 +10,6 @@ async-trait = "0.1.68"
 chrono = "0.4.26"
 dyn-clone = "1.0.11"
 flume = "0.10.14"
-tokio = { version = "1", features = ["rt", "time", "test-util", "macros"] }
+thiserror = "1.0.40"
+tokio_wasi = { version = "1", features = ["rt", "time", "test-util", "macros"] }
+tracing = "0.1.37"
