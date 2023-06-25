@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use wlf_binlog_collector::{BinlogCollector, BinlogOptions, ReplicaOptions, SslMode};
-use wlf_binlog_filter::BinlogFilter;
+use wlf_binlog_filter::{BinlogFilter, BinlogFilterRules};
 use wlf_core::event_hub::{EventHub, EventHubApi};
 use wlf_kafka_dispatcher::KafkaDispatcher;
 
@@ -12,7 +12,6 @@ async fn main() {
     let mut hub = EventHub::new();
 
     // create a collector, a transformer, and a dispatcher first
-    // register them in the `EventHub`
     let options = ReplicaOptions {
         username: String::from("root"),
         password: String::from("password"),
@@ -23,8 +22,16 @@ async fn main() {
     };
     let collector = BinlogCollector::new("binlog_collector", "binlog_parser", options);
 
-    let transformer = BinlogFilter::new("binlog_parser", "kafka_dispatcher");
-    let dispatcher = KafkaDispatcher::new("kafka_dispatcher", vec!["127.0.0.1:9092".to_string()]);
+    let rules = BinlogFilterRules::new()
+        .exclude("d1", None)
+        .include("d1", Some("t1"));
+    let transformer = BinlogFilter::new("binlog_parser", "kafka_dispatcher", rules);
+
+    let mut dispatcher =
+        KafkaDispatcher::new("kafka_dispatcher", vec!["127.0.0.1:9092".to_string()]);
+    dispatcher.set_topic(r"logFlex.%{database}.%{table}");
+
+    // register them in the `EventHub`
     hub.register_component(&collector);
     hub.register_component(&transformer);
     hub.register_component(&dispatcher);
