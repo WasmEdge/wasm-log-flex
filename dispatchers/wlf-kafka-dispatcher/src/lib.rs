@@ -11,14 +11,14 @@ use rskafka::{
 use thiserror::Error;
 use tracing::{error, info};
 use wlf_core::{
-    event_hub::{EventHub, EventHubApi},
+    event_router::{EventRouter, EventRouterApi},
     ComponentApi, ComponentKind, Value,
 };
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("event hub error, {0}")]
-    EventHub(#[from] wlf_core::event_hub::Error),
+    #[error("event router error, {0}")]
+    EventRouter(#[from] wlf_core::event_router::Error),
     #[error("kafka client error, {0}")]
     KafkaClient(#[from] rskafka::client::error::Error),
     #[error("serialize/deserialize error, {0}")]
@@ -54,13 +54,13 @@ impl KafkaDispatcher {
         self.topic = topic.into();
     }
 
-    pub async fn start_dispatching(self, hub: Arc<EventHub>) -> Result<(), Error> {
+    pub async fn start_dispatching(self, router: Arc<EventRouter>) -> Result<(), Error> {
         let client = ClientBuilder::new(self.bootstrap_brokers.clone())
             .build()
             .await?;
         let controller_client = client.controller_client()?;
         let mut topics_cache = client.list_topics().await?;
-        while let Ok(event) = hub.poll_event(self.id()).await {
+        while let Ok(event) = router.poll_event(self.id()).await {
             info!("receive new event:\n{event:#?}");
             // get the topic
             let topic_name = if self.topic == default_topic() {

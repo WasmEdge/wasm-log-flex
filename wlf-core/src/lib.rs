@@ -1,5 +1,5 @@
 mod event;
-pub mod event_hub;
+pub mod event_router;
 mod value;
 
 pub use event::{Event, EventMeta};

@@ -8,7 +8,7 @@ use thiserror::Error;
 use tracing::error;
 
 #[async_trait]
-pub trait EventHubApi {
+pub trait EventRouterApi {
     async fn send_event(&self, event: Event, component_id: &str) -> Result<(), Error>;
     async fn poll_event(&self, component_id: &str) -> Result<Event, Error>;
     fn register_component(&mut self, collector: &impl ComponentApi);
@@ -24,7 +24,7 @@ pub enum Error {
     Internal(String),
 }
 
-pub struct EventHub {
+pub struct EventRouter {
     registry: HashMap<String, ComponentRecord>,
 }
 
@@ -40,7 +40,7 @@ pub enum ComponentRecord {
     },
 }
 
-impl EventHub {
+impl EventRouter {
     pub fn new() -> Self {
         Self {
             registry: HashMap::new(),
@@ -49,7 +49,7 @@ impl EventHub {
 }
 
 #[async_trait]
-impl EventHubApi for EventHub {
+impl EventRouterApi for EventRouter {
     async fn send_event(&self, event: Event, component_id: &str) -> Result<(), Error> {
         let r = self.registry.get(component_id).ok_or_else(|| {
             error!("can't send event to component {component_id}, component does not exist");
@@ -107,7 +107,7 @@ impl EventHubApi for EventHub {
     }
 }
 
-impl Default for EventHub {
+impl Default for EventRouter {
     fn default() -> Self {
         Self::new()
     }

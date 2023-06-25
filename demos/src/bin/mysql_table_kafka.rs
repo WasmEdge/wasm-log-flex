@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use wlf_binlog_collector::{BinlogCollector, BinlogOptions, ReplicaOptions, SslMode};
 use wlf_binlog_filter::{BinlogFilter, BinlogFilterRules};
-use wlf_core::event_hub::{EventHub, EventHubApi};
+use wlf_core::event_router::{EventRouter, EventRouterApi};
 use wlf_kafka_dispatcher::KafkaDispatcher;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     tracing_subscriber::fmt::init();
-    // create an event hub
-    let mut hub = EventHub::new();
+    // create an event router
+    let mut router = EventRouter::new();
 
     // create a collector, a transformer, and a dispatcher first
     let options = ReplicaOptions {
@@ -31,31 +31,31 @@ async fn main() {
         KafkaDispatcher::new("kafka_dispatcher", vec!["127.0.0.1:9092".to_string()]);
     dispatcher.set_topic(r"logFlex.%{database}.%{table}");
 
-    // register them in the `EventHub`
-    hub.register_component(&collector);
-    hub.register_component(&transformer);
-    hub.register_component(&dispatcher);
+    // register them in the router
+    router.register_component(&collector);
+    router.register_component(&transformer);
+    router.register_component(&dispatcher);
 
     // start all the components
-    let hub = Arc::new(hub);
-    let hub_arc = Arc::clone(&hub);
+    let router = Arc::new(router);
+    let router_arc = Arc::clone(&router);
     tokio::task::spawn(async move {
         collector
-            .start_collecting(hub_arc)
+            .start_collecting(router_arc)
             .await
             .expect("collector exit unexpectedly");
     });
-    let hub_arc = Arc::clone(&hub);
+    let router_arc = Arc::clone(&router);
     tokio::spawn(async move {
         transformer
-            .start_filtering(hub_arc)
+            .start_filtering(router_arc)
             .await
             .expect("filter exit unexpectedly");
     });
-    let hub_arc = Arc::clone(&hub);
+    let router_arc = Arc::clone(&router);
     let handle = tokio::spawn(async move {
         dispatcher
-            .start_dispatching(hub_arc)
+            .start_dispatching(router_arc)
             .await
             .expect("kafka dispatcher exit unexpectedly");
     });

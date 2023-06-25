@@ -3,7 +3,7 @@ use std::sync::Arc;
 use thiserror::Error;
 use tracing::info;
 use wlf_core::{
-    event_hub::{EventHub, EventHubApi},
+    event_router::{EventRouter, EventRouterApi},
     ComponentApi, ComponentKind, Event, Value,
 };
 
@@ -15,8 +15,8 @@ pub struct BinlogFilter {
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("event hub error, {0}")]
-    EventHub(#[from] wlf_core::event_hub::Error),
+    #[error("event router error, {0}")]
+    EventRouter(#[from] wlf_core::event_router::Error),
 }
 
 impl ComponentApi for BinlogFilter {
@@ -41,15 +41,15 @@ impl BinlogFilter {
             rules,
         }
     }
-    pub async fn start_filtering(self, hub: Arc<EventHub>) -> Result<(), Error> {
-        while let Ok(event) = hub.poll_event(self.id()).await {
+    pub async fn start_filtering(self, router: Arc<EventRouter>) -> Result<(), Error> {
+        while let Ok(event) = router.poll_event(self.id()).await {
             info!("{} receives new event:\n{event:#?}", self.id);
 
             if !self.rules.eval(&event) {
                 continue;
             }
 
-            hub.send_event(event, self.destination.as_str()).await?;
+            router.send_event(event, self.destination.as_str()).await?;
         }
         Ok(())
     }

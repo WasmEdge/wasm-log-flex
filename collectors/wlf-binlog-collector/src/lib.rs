@@ -10,7 +10,7 @@ use mysql_cdc::{
 use sql_analyzer::SqlAnalyzer;
 use tracing::{error, info};
 use wlf_core::{
-    event_hub::{EventHub, EventHubApi},
+    event_router::{EventRouter, EventRouterApi},
     ComponentApi, ComponentKind, Event, EventMeta, Value,
 };
 
@@ -50,7 +50,7 @@ impl BinlogCollector {
         }
     }
 
-    pub async fn start_collecting(self, hub: Arc<EventHub>) -> Result<(), Error> {
+    pub async fn start_collecting(self, router: Arc<EventRouter>) -> Result<(), Error> {
         // create the binlog client
         let mut client = BinlogClient::new(self.replica_options);
         let events_stream = client.replicate().await?;
@@ -62,7 +62,7 @@ impl BinlogCollector {
         while let Some(Ok((event_header, binlog_event))) = events_stream.next().await {
             info!("new binlog event:\n{event_header:#?}\n{binlog_event:#?}");
             match into_wlf_event(&mut sql_parser, event_header, binlog_event) {
-                Ok(event) => hub.send_event(event, &self.destination).await?,
+                Ok(event) => router.send_event(event, &self.destination).await?,
                 Err(e) => error!("failed to convert binlog event, {e}"),
             }
         }
@@ -112,7 +112,7 @@ mod tests {
     };
     use utils::test_utils::DummyComponent;
     use wlf_core::{
-        event_hub::{EventHub, EventHubApi},
+        event_router::{EventRouter, EventRouterApi},
         ComponentKind,
     };
 
@@ -132,14 +132,14 @@ mod tests {
 
         let dummy_dispatcher = DummyComponent::new("dispatcher", ComponentKind::Dispatcher);
 
-        let mut hub = EventHub::new();
-        hub.register_component(&collector);
-        hub.register_component(&dummy_dispatcher);
-        let hub = Arc::new(hub);
+        let mut router = EventRouter::new();
+        router.register_component(&collector);
+        router.register_component(&dummy_dispatcher);
+        let router = Arc::new(router);
 
-        tokio::spawn(collector.start_collecting(Arc::clone(&hub)));
+        tokio::spawn(collector.start_collecting(Arc::clone(&router)));
 
-        while let Ok(event) = hub.poll_event("dispatcher").await {
+        while let Ok(event) = router.poll_event("dispatcher").await {
             println!("{event:#?}");
         }
     }
