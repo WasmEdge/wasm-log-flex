@@ -24,7 +24,7 @@ async fn main() {
     let collector = BinlogCollector::new("binlog_collector", "binlog_parser", options);
 
     let transformer = BinlogFilter::new("binlog_parser", "kafka_dispatcher");
-    let dispatcher = KafkaDispatcher::new("kafka_dispatcher");
+    let dispatcher = KafkaDispatcher::new("kafka_dispatcher", vec!["127.0.0.1:9092".to_string()]);
     hub.register_component(&collector);
     hub.register_component(&transformer);
     hub.register_component(&dispatcher);
@@ -47,7 +47,10 @@ async fn main() {
     });
     let hub_arc = Arc::clone(&hub);
     let handle = tokio::spawn(async move {
-        dispatcher.start_dispatching(hub_arc).await;
+        dispatcher
+            .start_dispatching(hub_arc)
+            .await
+            .expect("kafka dispatcher exit unexpectedly");
     });
 
     // should output mysql table event is forwarded to ...

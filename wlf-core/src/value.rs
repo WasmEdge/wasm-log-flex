@@ -1,10 +1,12 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// `Value` is a json-like nested structure with fields useful for recording a log, such as `TimeStamp` and `Level`
 // TODO: create a macro for easier construction
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum Value {
     Int(i64),
     UInt(u64),
@@ -19,7 +21,7 @@ pub enum Value {
     Null,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LogLevel {
     Fatal,
     Error,
