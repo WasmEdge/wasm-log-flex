@@ -7,11 +7,12 @@ use mysql_cdc::{
     events::{binlog_event::BinlogEvent, event_header::EventHeader},
 };
 
+use serde_json::json;
 use sql_analyzer::SqlAnalyzer;
 use tracing::{error, info};
 use wlf_core::{
     event_router::{EventRouter, EventRouterApi},
-    ComponentApi, ComponentKind, Event, EventMeta, Value,
+    ComponentApi, ComponentKind, Event, EventMeta,
 };
 
 mod error;
@@ -84,15 +85,15 @@ fn into_wlf_event(
             let LocalResult::Single(timestamp) = Utc.timestamp_opt(event_header.timestamp as i64, 0) else {
                 return Err(Error::Other("failed to convert timestamp".to_string()));
             };
-            let meta = Value::from([
-                ("database", e.database_name.into()),
-                ("timestamp", timestamp.into()),
-                ("server_id", event_header.server_id.into()),
-                ("thread_id", e.thread_id.into()),
-            ]);
+            let meta = json!({
+                "database": e.database_name,
+                "timestamp": timestamp,
+                "server_id": event_header.server_id,
+                "thread_id": e.thread_id,
+            });
             let properties = sql_parser.analyze(&e.sql_statement)?;
 
-            let value = Value::from([("meta", meta), ("sql", properties)]);
+            let value = json!({"meta": meta, "sql": properties});
 
             Ok(Event {
                 value,

@@ -1,12 +1,10 @@
-use std::collections::BTreeMap;
-
+use serde_json::{Map, Value};
 use sqlparser::{
     ast::Statement,
     dialect::MySqlDialect,
     parser::{Parser, ParserError},
 };
 use thiserror::Error;
-use wlf_core::Value;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -32,7 +30,7 @@ impl SqlAnalyzer {
         let st = ast.remove(0);
 
         // extract info
-        let mut properties: BTreeMap<String, Value> = BTreeMap::new();
+        let mut properties: Map<String, Value> = Map::new();
         properties.insert("statement".to_string(), sql.into());
         match st {
             Statement::Insert { table_name, .. } => {

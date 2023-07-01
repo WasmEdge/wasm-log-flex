@@ -8,11 +8,12 @@ use rskafka::{
     },
     record::Record,
 };
+use serde_json::Value;
 use thiserror::Error;
 use tracing::{error, info};
 use wlf_core::{
     event_router::{EventRouter, EventRouterApi},
-    ComponentApi, ComponentKind, Value,
+    ComponentApi, ComponentKind,
 };
 
 #[derive(Error, Debug)]

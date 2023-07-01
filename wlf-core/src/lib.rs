@@ -1,9 +1,7 @@
 mod event;
 pub mod event_router;
-mod value;
 
 pub use event::{Event, EventMeta};
-pub use value::{LogLevel, Value};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ComponentKind {

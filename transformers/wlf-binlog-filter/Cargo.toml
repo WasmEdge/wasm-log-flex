@@ -10,3 +10,4 @@ wlf-core = { path = "../../wlf-core" }
 tokio_wasi = { version = "1", features = ["rt", "time", "test-util", "macros"] }
 tracing = "0.1.37"
 thiserror = "1.0.40"
+serde_json = "1.0.99"

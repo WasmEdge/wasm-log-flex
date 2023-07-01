@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
+use serde_json::Value;
 use thiserror::Error;
 use tracing::info;
 use wlf_core::{
     event_router::{EventRouter, EventRouterApi},
-    ComponentApi, ComponentKind, Event, Value,
+    ComponentApi, ComponentKind, Event,
 };
 
 pub struct BinlogFilter {
