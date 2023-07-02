@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use chrono::Utc;
+use regex::{Captures, Regex};
 use rskafka::{
     client::{
         partition::{Compression, UnknownTopicHandling},
@@ -61,24 +62,28 @@ impl KafkaDispatcher {
             .await?;
         let controller_client = client.controller_client()?;
         let mut topics_cache = client.list_topics().await?;
+        let replacer = Regex::new(r"%\{(?P<path>.+?)\}").expect("can't create topic replacer");
         while let Ok(event) = router.poll_event(self.id()).await {
             info!("receive new event:\n{event:#?}");
             // get the topic
-            let topic_name = if self.topic == default_topic() {
-                default_topic().to_owned()
-            } else {
-                let Some(Value::String(database)) = event.value.pointer("/meta/database") else {
-                    error!("no `database` field or `database` is not string, event: {event:?}");
+            let topic_name = {
+                let mut succeeded = true;
+                let topic_name = replacer
+                    .replace_all(&self.topic, |caps: &Captures| {
+                        let path = &caps["path"];
+                        if let Some(Value::String(value)) = event.value.pointer(path) {
+                            value.to_string()
+                        } else {
+                            error!("no {path} field or {path} is not string, event: {event:?}");
+                            succeeded = false;
+                            String::new()
+                        }
+                    })
+                    .to_string();
+                if !succeeded {
                     continue;
-                };
-                let Some(Value::String(table)) = event.value.pointer("/sql/table") else {
-                    error!("no `table` field or `table` is not string, event: {event:?}");
-                    continue;
-                };
-                self.topic
-                    .to_owned()
-                    .replace("%{database}", database)
-                    .replace("%{table}", table)
+                }
+                topic_name
             };
 
             // create the topic in kafka if topic does not exist

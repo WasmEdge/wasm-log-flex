@@ -29,7 +29,7 @@ async fn main() {
 
     let mut dispatcher =
         KafkaDispatcher::new("kafka_dispatcher", vec!["127.0.0.1:9092".to_string()]);
-    dispatcher.set_topic(r"logFlex.%{database}.%{table}");
+    dispatcher.set_topic(r"logFlex.%{/meta/database}.%{/sql/table}");
 
     // register them in the router
     router.register_component(&collector);
