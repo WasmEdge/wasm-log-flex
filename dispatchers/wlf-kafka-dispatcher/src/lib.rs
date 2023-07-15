@@ -1,7 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use chrono::Utc;
-use regex::{Captures, Regex};
 use rskafka::{
     client::{
         partition::{Compression, UnknownTopicHandling},
@@ -9,9 +8,9 @@ use rskafka::{
     },
     record::Record,
 };
-use serde_json::Value;
 use thiserror::Error;
 use tracing::{error, info};
+use utils::substitute_with_event;
 use wlf_core::{
     event_router::{EventRouter, EventRouterApi},
     ComponentApi, ComponentKind,
@@ -25,6 +24,8 @@ pub enum Error {
     KafkaClient(#[from] rskafka::client::error::Error),
     #[error("serialize/deserialize error, {0}")]
     Serde(#[from] serde_json::Error),
+    #[error("failed to generate topic name, {0}")]
+    TopicName(String),
 }
 
 pub struct KafkaDispatcher {
@@ -52,7 +53,7 @@ impl KafkaDispatcher {
         }
     }
 
-    pub fn set_topic(&mut self, topic: impl Into<String>) {
+    pub fn set_topic_template(&mut self, topic: impl Into<String>) {
         self.topic = topic.into();
     }
 
@@ -62,29 +63,11 @@ impl KafkaDispatcher {
             .await?;
         let controller_client = client.controller_client()?;
         let mut topics_cache = client.list_topics().await?;
-        let replacer = Regex::new(r"%\{(?P<path>.+?)\}").expect("can't create topic replacer");
         while let Ok(event) = router.poll_event(self.id()).await {
             info!("receive new event:\n{event:#?}");
             // get the topic
-            let topic_name = {
-                let mut succeeded = true;
-                let topic_name = replacer
-                    .replace_all(&self.topic, |caps: &Captures| {
-                        let path = &caps["path"];
-                        if let Some(Value::String(value)) = event.value.pointer(path) {
-                            value.to_string()
-                        } else {
-                            error!("no {path} field or {path} is not string, event: {event:?}");
-                            succeeded = false;
-                            String::new()
-                        }
-                    })
-                    .to_string();
-                if !succeeded {
-                    continue;
-                }
-                topic_name
-            };
+            let topic_name =
+                substitute_with_event(&self.topic, &event).map_err(Error::TopicName)?;
 
             // create the topic in kafka if topic does not exist
             if !topics_cache.iter().any(|topic| topic.name == topic_name) {

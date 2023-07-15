@@ -7,6 +7,7 @@ members = [
   "transformers/wlf-binlog-filter",
   # dispatchers
   "dispatchers/wlf-kafka-dispatcher",
+  "dispatchers/wlf-redis-dispatcher",
   # others
   "demos",
   "utils",

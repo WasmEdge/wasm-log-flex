@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 wlf-core = { path = "../wlf-core" }
+regex = "1.8.4"
+once_cell = "1.18.0"
