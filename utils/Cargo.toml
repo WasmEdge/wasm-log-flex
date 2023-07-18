@@ -9,3 +9,4 @@ edition = "2021"
 wlf-core = { path = "../wlf-core" }
 regex = "1.8.4"
 once_cell = "1.18.0"
+async-trait = "0.1.68"

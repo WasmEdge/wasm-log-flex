@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use redis::{
     AsyncCommands, ConnectionAddr, ConnectionInfo, IntoConnectionInfo, RedisConnectionInfo,
     RedisError,
 };
+use serde::Deserialize;
 use thiserror::Error;
-use tracing::info;
+use tracing::{info, warn};
 use utils::substitute_with_event;
 use wlf_core::{
     event_router::{EventRouter, EventRouterApi},
@@ -16,22 +18,28 @@ use wlf_core::{
 pub enum Error {
     #[error("redis error, {0}")]
     Redis(#[from] RedisError),
-    #[error("failed to generate redis key, {0}")]
-    TopicName(String),
     #[error("serialize/deserialize error, {0}")]
     Serde(#[from] serde_json::Error),
 }
 
+#[derive(Deserialize, Debug)]
 pub struct RedisDispatcher {
     id: String,
+    #[serde(default)]
     mode: Mode,
+    // TODO: use default here after https://github.com/serde-rs/serde/issues/1626 is fixed
+    #[serde(flatten)]
     config: Config,
 }
 
+#[derive(Deserialize, Debug, Clone)]
 pub struct Config {
+    #[serde(default = "default_host")]
     host: String,
+    #[serde(default = "default_port")]
     port: u16,
     auth: Option<String>,
+    #[serde(default = "default_database_number")]
     database_number: u8,
 }
 
@@ -51,14 +59,28 @@ impl IntoConnectionInfo for Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            host: "localhost".to_string(),
-            port: 6379,
+            host: default_host(),
+            port: default_port(),
             auth: None,
-            database_number: 0,
+            database_number: default_database_number(),
         }
     }
 }
 
+pub fn default_host() -> String {
+    "localhost".to_string()
+}
+
+pub fn default_port() -> u16 {
+    6379
+}
+
+pub fn default_database_number() -> u8 {
+    0
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(tag = "type")]
 pub enum Mode {
     LPush { key: String },
     RPush { key: String },
@@ -92,9 +114,20 @@ impl RedisDispatcher {
         self.config.auth = Some(password.into());
         self
     }
+}
 
-    pub async fn start_dispatching(self, router: Arc<EventRouter>) -> Result<(), Error> {
-        let mut redis_client = redis::Client::open(self.config)?
+#[async_trait]
+impl ComponentApi for RedisDispatcher {
+    fn id(&self) -> &str {
+        self.id.as_str()
+    }
+
+    fn kind(&self) -> ComponentKind {
+        ComponentKind::Dispatcher
+    }
+
+    async fn run(&self, router: Arc<EventRouter>) -> Result<(), Box<dyn std::error::Error>> {
+        let mut redis_client = redis::Client::open(self.config.clone())?
             .get_async_connection()
             .await?;
 
@@ -103,42 +136,47 @@ impl RedisDispatcher {
 
             match &self.mode {
                 Mode::LPush { key } => {
-                    let key = substitute_with_event(key, &event).map_err(Error::TopicName)?;
+                    let Ok(key) = substitute_with_event(key, &event) else {
+                        warn!("can't generate key for event");
+                        continue;
+                    };
                     let value = serde_json::to_string(&event)?;
-                    redis_client.lpush(key, value).await?;
+                    redis_client.lpush(&key, value).await?;
+                    info!("event is dispatched to list {key}");
                 }
                 Mode::RPush { key } => {
-                    let key = substitute_with_event(key, &event).map_err(Error::TopicName)?;
+                    let Ok(key) = substitute_with_event(key, &event) else {
+                        warn!("can't generate key for event");
+                        continue;
+                    };
                     let value = serde_json::to_string(&event)?;
-                    redis_client.rpush(key, value).await?;
+                    redis_client.rpush(&key, value).await?;
+                    info!("event is dispatched to list {key}");
                 }
                 Mode::Pub { channel } => {
-                    let channel =
-                        substitute_with_event(channel, &event).map_err(Error::TopicName)?;
+                    let Ok(channel) = substitute_with_event(channel, &event) else {
+                        warn!("can't generate channel for event");
+                        continue; 
+                    };
                     let value = serde_json::to_string(&event)?;
-                    redis_client.publish(channel, value).await?;
+                    redis_client.publish(&channel, value).await?;
+                    info!("event is dispatched to channel {channel}");
                 }
                 Mode::XADD { key } => {
-                    let key = substitute_with_event(key, &event).map_err(Error::TopicName)?;
+                    let Ok(key) = substitute_with_event(key, &event) else {
+                        warn!("can't generate key for event");
+                        continue;
+                    };
                     let value = serde_json::to_string(&event)?;
                     redis_client
-                        .xadd(key, "*", &[("event".to_string(), value)])
+                        .xadd(&key, "*", &[("event".to_string(), value)])
                         .await?;
+                    info!("event is dispatched to stream {key}");
                 }
             }
         }
 
         Ok(())
-    }
-}
-
-impl ComponentApi for RedisDispatcher {
-    fn id(&self) -> &str {
-        self.id.as_str()
-    }
-
-    fn kind(&self) -> ComponentKind {
-        ComponentKind::Dispatcher
     }
 }
 
@@ -204,7 +242,7 @@ mod tests {
             }
         });
 
-        dispatcher.start_dispatching(router).await?;
+        dispatcher.run(router).await?;
 
         Ok(())
     }

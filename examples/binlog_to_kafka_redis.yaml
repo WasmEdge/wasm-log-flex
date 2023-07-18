@@ -1,0 +1,31 @@
+collectors:
+  - id: binlog_collector
+    type: BinlogCollector
+    destination: filter
+    user: root
+    password: password
+transformers:
+  - id: filter
+    type: BinlogFilter
+    destination: replicator
+    rules:
+      - exclude:
+          database: d1
+      - include:
+          database: d1
+          table: t1
+  - id: replicator
+    type: EventReplicator
+    destinations:
+      - redis
+      - kafka
+dispatchers:
+  - id: kafka
+    type: KafkaDispatcher
+    topic: logFlex.%{/meta/database}.%{/sql/table}
+    bootstrap_brokers: ["127.0.0.1:9092"]
+  - id: redis
+    type: RedisDispatcher
+    mode:
+      type: Pub
+      channel: logFlex.%{/meta/database}.%{/sql/table}

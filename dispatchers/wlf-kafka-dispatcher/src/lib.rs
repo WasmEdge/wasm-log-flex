@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
+use async_trait::async_trait;
 use chrono::Utc;
 use rskafka::{
     client::{
@@ -8,8 +9,9 @@ use rskafka::{
     },
     record::Record,
 };
+use serde::Deserialize;
 use thiserror::Error;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use utils::substitute_with_event;
 use wlf_core::{
     event_router::{EventRouter, EventRouterApi},
@@ -24,16 +26,17 @@ pub enum Error {
     KafkaClient(#[from] rskafka::client::error::Error),
     #[error("serialize/deserialize error, {0}")]
     Serde(#[from] serde_json::Error),
-    #[error("failed to generate topic name, {0}")]
-    TopicName(String),
 }
 
+#[derive(Deserialize, Debug)]
 pub struct KafkaDispatcher {
     id: String,
+    #[serde(default = "default_topic")]
     topic: String,
     bootstrap_brokers: Vec<String>,
 }
 
+#[async_trait]
 impl ComponentApi for KafkaDispatcher {
     fn id(&self) -> &str {
         self.id.as_str()
@@ -42,23 +45,8 @@ impl ComponentApi for KafkaDispatcher {
     fn kind(&self) -> ComponentKind {
         ComponentKind::Dispatcher
     }
-}
 
-impl KafkaDispatcher {
-    pub fn new(id: impl Into<String>, bootstrap_brokers: Vec<String>) -> Self {
-        Self {
-            id: id.into(),
-            topic: default_topic().to_string(),
-            bootstrap_brokers,
-        }
-    }
-
-    pub fn set_topic_template(&mut self, topic: impl Into<String>) -> &mut Self {
-        self.topic = topic.into();
-        self
-    }
-
-    pub async fn start_dispatching(self, router: Arc<EventRouter>) -> Result<(), Error> {
+    async fn run(&self, router: Arc<EventRouter>) -> Result<(), Box<dyn std::error::Error>> {
         let client = ClientBuilder::new(self.bootstrap_brokers.clone())
             .build()
             .await?;
@@ -67,8 +55,10 @@ impl KafkaDispatcher {
         while let Ok(event) = router.poll_event(self.id()).await {
             info!("receive new event:\n{event:#?}");
             // get the topic
-            let topic_name =
-                substitute_with_event(&self.topic, &event).map_err(Error::TopicName)?;
+            let Ok(topic_name) = substitute_with_event(&self.topic, &event) else {
+                warn!("can't generate topic_name for event");
+                continue;
+            };
 
             // create the topic in kafka if topic does not exist
             if !topics_cache.iter().any(|topic| topic.name == topic_name) {
@@ -101,6 +91,6 @@ impl KafkaDispatcher {
     }
 }
 
-const fn default_topic() -> &'static str {
-    "wasm-log-flex"
+fn default_topic() -> String {
+    "wasm-log-flex".to_string()
 }

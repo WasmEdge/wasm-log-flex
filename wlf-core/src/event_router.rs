@@ -11,7 +11,7 @@ use tracing::error;
 pub trait EventRouterApi {
     async fn send_event(&self, event: Event, component_id: &str) -> Result<(), Error>;
     async fn poll_event(&self, component_id: &str) -> Result<Event, Error>;
-    fn register_component(&mut self, collector: &impl ComponentApi);
+    fn register_component(&mut self, collector: &dyn ComponentApi);
 }
 
 #[derive(Debug, Error)]
@@ -79,7 +79,7 @@ impl EventRouterApi for EventRouter {
         };
         Ok(rx.recv_async().await?)
     }
-    fn register_component(&mut self, component: &impl ComponentApi) {
+    fn register_component(&mut self, component: &dyn ComponentApi) {
         if self.registry.contains_key(component.id()) {
             error!("component {} has already been registered", component.id());
             return;

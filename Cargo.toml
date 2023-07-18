@@ -5,12 +5,13 @@ members = [
   "collectors/wlf-binlog-collector",
   # transformers
   "transformers/wlf-binlog-filter",
+  "transformers/wlf-event-replicator",
   # dispatchers
   "dispatchers/wlf-kafka-dispatcher",
   "dispatchers/wlf-redis-dispatcher",
   # others
-  "demos",
   "utils",
+  "wlf-aio",
 ]
 
 [patch.crates-io]

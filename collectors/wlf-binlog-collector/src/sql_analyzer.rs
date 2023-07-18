@@ -1,10 +1,10 @@
-use serde_json::{Map, Value};
 use sqlparser::{
     ast::Statement,
     dialect::MySqlDialect,
     parser::{Parser, ParserError},
 };
 use thiserror::Error;
+use wlf_core::{value, Value};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -30,20 +30,22 @@ impl SqlAnalyzer {
         let st = ast.remove(0);
 
         // extract info
-        let mut properties: Map<String, Value> = Map::new();
-        properties.insert("statement".to_string(), sql.into());
-        match st {
+        let properties = match st {
             Statement::Insert { table_name, .. } => {
-                properties.insert("type".to_string(), "insert".into());
-                properties.insert("table".to_string(), table_name.to_string().into());
+                value!({
+                    "type": "insert",
+                    "table": table_name.to_string()
+                })
             }
             Statement::CreateTable { name, .. } => {
-                properties.insert("type".to_string(), "table-create".into());
-                properties.insert("table".to_string(), name.to_string().into());
+                value!({
+                    "type": "table-create",
+                    "table": name.to_string()
+                })
             }
-            _ => {}
-        }
+            _ => value!({}),
+        };
 
-        Ok(properties.into())
+        Ok(properties)
     }
 }

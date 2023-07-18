@@ -1,16 +1,19 @@
 use std::sync::Arc;
 
-use serde_json::Value;
+use async_trait::async_trait;
+use serde::Deserialize;
 use thiserror::Error;
 use tracing::info;
 use wlf_core::{
     event_router::{EventRouter, EventRouterApi},
-    ComponentApi, ComponentKind, Event,
+    ComponentApi, ComponentKind, Event, Value,
 };
 
+#[derive(Deserialize, Debug)]
 pub struct BinlogFilter {
     id: String,
     destination: String,
+    #[serde(flatten)]
     rules: BinlogFilterRules,
 }
 
@@ -20,6 +23,7 @@ pub enum Error {
     EventRouter(#[from] wlf_core::event_router::Error),
 }
 
+#[async_trait]
 impl ComponentApi for BinlogFilter {
     fn id(&self) -> &str {
         self.id.as_str()
@@ -28,21 +32,8 @@ impl ComponentApi for BinlogFilter {
     fn kind(&self) -> ComponentKind {
         ComponentKind::Transformer
     }
-}
 
-impl BinlogFilter {
-    pub fn new(
-        id: impl Into<String>,
-        destination: impl Into<String>,
-        rules: BinlogFilterRules,
-    ) -> Self {
-        Self {
-            id: id.into(),
-            destination: destination.into(),
-            rules,
-        }
-    }
-    pub async fn start_filtering(self, router: Arc<EventRouter>) -> Result<(), Error> {
+    async fn run(&self, router: Arc<EventRouter>) -> Result<(), Box<dyn std::error::Error>> {
         while let Ok(event) = router.poll_event(self.id()).await {
             info!("{} receives new event:\n{event:#?}", self.id);
 
@@ -56,11 +47,13 @@ impl BinlogFilter {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Deserialize, Debug)]
 pub struct BinlogFilterRules {
     rules: Vec<BinlogFilterRule>,
 }
 
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
 enum BinlogFilterRule {
     Include {
         database: String,

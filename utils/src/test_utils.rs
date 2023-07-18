@@ -1,6 +1,9 @@
 //! Utilities for testing
 
-use wlf_core::{ComponentApi, ComponentKind};
+use std::sync::Arc;
+
+use async_trait::async_trait;
+use wlf_core::{event_router::EventRouter, ComponentApi, ComponentKind};
 
 pub struct DummyComponent {
     id: String,
@@ -16,6 +19,7 @@ impl DummyComponent {
     }
 }
 
+#[async_trait]
 impl ComponentApi for DummyComponent {
     fn id(&self) -> &str {
         &self.id
@@ -23,5 +27,9 @@ impl ComponentApi for DummyComponent {
 
     fn kind(&self) -> ComponentKind {
         self.kind
+    }
+
+    async fn run(&self, _router: Arc<EventRouter>) -> Result<(), Box<dyn std::error::Error>> {
+        Ok(())
     }
 }
