@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 wlf-core = { path = "../../wlf-core" }
 tokio_wasi = { version = "1", features = ["rt", "time", "test-util", "macros"] }
-redis_wasi = { version = "0.22.3", features = ["tokio-comp"] }
+redis_wasi = { version = "0.22.3", features = ["tokio-comp", "json"] }
 thiserror = "1.0.40"
 utils = { path = "../../utils" }
 tracing = "0.1.37"

@@ -53,8 +53,9 @@ impl KafkaDispatcher {
         }
     }
 
-    pub fn set_topic_template(&mut self, topic: impl Into<String>) {
+    pub fn set_topic_template(&mut self, topic: impl Into<String>) -> &mut Self {
         self.topic = topic.into();
+        self
     }
 
     pub async fn start_dispatching(self, router: Arc<EventRouter>) -> Result<(), Error> {
