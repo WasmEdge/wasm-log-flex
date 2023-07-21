@@ -10,10 +10,10 @@ use mysql_cdc::{
 
 use serde::Deserialize;
 use sql_analyzer::SqlAnalyzer;
-use tracing::{error, info};
+use tracing::{info, warn};
 use wlf_core::{
     event_router::{EventRouter, EventRouterApi},
-    value, ComponentApi, ComponentKind, Event, EventMeta,
+    value, ComponentApi, ComponentKind, Event, EventMeta, Value,
 };
 
 mod error;
@@ -70,10 +70,11 @@ impl ComponentApi for BinlogCollector {
         let mut sql_parser = SqlAnalyzer::new();
 
         while let Some(Ok((event_header, binlog_event))) = events_stream.next().await {
-            info!("new binlog event:\n{event_header:#?}\n{binlog_event:#?}");
+            info!("new binlog event:\n\t{event_header:?}\n\t{binlog_event:?}");
             match into_wlf_event(&mut sql_parser, event_header, binlog_event) {
-                Ok(event) => router.send_event(event, &self.destination).await?,
-                Err(e) => error!("failed to convert binlog event, {e}"),
+                Ok(Some(event)) => router.send_event(event, &self.destination).await?,
+                Ok(None) => {}
+                Err(e) => warn!("failed to convert binlog event, {e}"),
             }
         }
 
@@ -83,32 +84,77 @@ impl ComponentApi for BinlogCollector {
 
 /// The event structure is largely borrowed from [maxwells](https://maxwells-daemon.io/dataformat/)
 fn into_wlf_event(
-    sql_parser: &mut SqlAnalyzer,
+    sql_analyzer: &mut SqlAnalyzer,
     event_header: EventHeader,
     binlog_event: BinlogEvent,
-) -> Result<Event, Error> {
+) -> Result<Option<Event>, Error> {
+    let LocalResult::Single(timestamp) = Utc.timestamp_opt(event_header.timestamp as i64, 0) else {
+        return Err(Error::Other("failed to convert timestamp".to_string()));
+    };
     match binlog_event {
         BinlogEvent::QueryEvent(e) => {
-            info!("receive query event {e:?}");
-
-            let LocalResult::Single(timestamp) = Utc.timestamp_opt(event_header.timestamp as i64, 0) else {
-                return Err(Error::Other("failed to convert timestamp".to_string()));
-            };
-            let meta = value!({
-                "database": e.database_name,
+            let mut value = value!({
                 "timestamp": timestamp,
                 "server_id": event_header.server_id,
                 "thread_id": e.thread_id,
             });
-            let properties = sql_parser.analyze(&e.sql_statement)?;
 
-            let value = value!({"meta": meta, "sql": properties});
+            let mut sql_properties = sql_analyzer.analyze(&e.database_name, &e.sql_statement)?;
+            if sql_properties.is_null() {
+                return Ok(None);
+            }
 
-            Ok(Event {
+            value
+                .as_object_mut()
+                .unwrap()
+                .append(sql_properties.as_object_mut().unwrap());
+
+            Ok(Some(Event {
                 value,
                 meta: EventMeta {},
-            })
+            }))
         }
+        BinlogEvent::TableMapEvent(e) => {
+            sql_analyzer.map_table(&e.database_name, &e.table_name, e.table_id);
+            Ok(None)
+        }
+        BinlogEvent::WriteRowsEvent(e) => {
+            let (database, table) = sql_analyzer.get_table_info(e.table_id)?;
+            let columns = sql_analyzer.get_column_defs(e.table_id)?;
+            let mut value = value!({
+                "database": database,
+                "table": table,
+                "type": "insert",
+                "timestamp": timestamp,
+                "server_id": event_header.server_id,
+                "data": []
+            });
+            let data = value.pointer_mut("/data").unwrap().as_array_mut().unwrap();
+            for (i, r) in e.rows.iter().enumerate() {
+                let mut row_value = value!({});
+                let row_data = row_value.as_object_mut().unwrap();
+                for c in &r.cells {
+                    let Some(def) = columns.get(i) else {
+                        warn!("row data and column definitions do not match");
+                        break;
+                    };
+                    row_data.insert(
+                        def.name.to_string(),
+                        c.as_ref().map_or(Value::Null, |v| format!("{v:?}").into()),
+                    );
+                }
+                data.push(row_value);
+            }
+            Ok(Some(Event {
+                value,
+                meta: EventMeta {},
+            }))
+        }
+        BinlogEvent::RotateEvent(_)
+        | BinlogEvent::UnknownEvent
+        | BinlogEvent::FormatDescriptionEvent(_)
+        | BinlogEvent::HeartbeatEvent(_)
+        | BinlogEvent::XidEvent(_) => Ok(None),
         _ => Err(Error::Other("unsupported binlog event".to_string())),
     }
 }

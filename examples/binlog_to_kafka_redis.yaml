@@ -22,10 +22,10 @@ transformers:
 dispatchers:
   - id: kafka
     type: KafkaDispatcher
-    topic: logFlex.%{/meta/database}.%{/sql/table}
+    topic: logFlex.%{/database}.%{/table}
     bootstrap_brokers: ["127.0.0.1:9092"]
   - id: redis
     type: RedisDispatcher
     mode:
       type: Pub
-      channel: logFlex.%{/meta/database}.%{/sql/table}
+      channel: logFlex.%{/database}.%{/table}

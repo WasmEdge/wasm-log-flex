@@ -11,7 +11,7 @@ use rskafka::{
 };
 use serde::Deserialize;
 use thiserror::Error;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 use utils::substitute_with_event;
 use wlf_core::{
     event_router::{EventRouter, EventRouterApi},
@@ -53,10 +53,10 @@ impl ComponentApi for KafkaDispatcher {
         let controller_client = client.controller_client()?;
         let mut topics_cache = client.list_topics().await?;
         while let Ok(event) = router.poll_event(self.id()).await {
-            info!("receive new event:\n{event:#?}");
+            info!("{} receives new event:\n\t{event:?}", self.id);
+
             // get the topic
             let Ok(topic_name) = substitute_with_event(&self.topic, &event) else {
-                warn!("can't generate topic_name for event");
                 continue;
             };
 

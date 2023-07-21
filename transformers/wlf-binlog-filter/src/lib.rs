@@ -35,7 +35,7 @@ impl ComponentApi for BinlogFilter {
 
     async fn run(&self, router: Arc<EventRouter>) -> Result<(), Box<dyn std::error::Error>> {
         while let Ok(event) = router.poll_event(self.id()).await {
-            info!("{} receives new event:\n{event:#?}", self.id);
+            info!("{} receives new event:\n\t{event:?}", self.id);
 
             if !self.rules.eval(&event) {
                 continue;
@@ -93,7 +93,7 @@ impl BinlogFilterRules {
     fn eval(&self, event: &Event) -> bool {
         self.rules.iter().fold(true, |st, rule| match rule {
             BinlogFilterRule::Include { database, table } => {
-                let Some(Value::String(d)) = event.value.pointer("/meta/database") else {
+                let Some(Value::String(d)) = event.value.pointer("/database") else {
                     return st;
                 };
                 if d != database {
@@ -104,13 +104,13 @@ impl BinlogFilterRules {
                     return true;
                 };
 
-                match event.value.pointer("/sql/table") {
+                match event.value.pointer("/table") {
                     Some(Value::String(t)) if t == table => true,
                     _ => st,
                 }
             }
             BinlogFilterRule::Exclude { database, table } => {
-                let Some(Value::String(d)) = event.value.pointer("/meta/database") else {
+                let Some(Value::String(d)) = event.value.pointer("/database") else {
                     return st;
                 };
                 if d != database {
@@ -121,7 +121,7 @@ impl BinlogFilterRules {
                     return false;
                 };
 
-                match event.value.pointer("/sql/table") {
+                match event.value.pointer("/table") {
                     Some(Value::String(t)) if t == table => false,
                     _ => st,
                 }

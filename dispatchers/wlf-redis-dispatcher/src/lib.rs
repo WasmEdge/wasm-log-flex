@@ -7,7 +7,7 @@ use redis::{
 };
 use serde::Deserialize;
 use thiserror::Error;
-use tracing::{info, warn};
+use tracing::info;
 use utils::substitute_with_event;
 use wlf_core::{
     event_router::{EventRouter, EventRouterApi},
@@ -132,12 +132,11 @@ impl ComponentApi for RedisDispatcher {
             .await?;
 
         while let Ok(event) = router.poll_event(&self.id).await {
-            info!("receive new event:\n{event:#?}");
+            info!("{} receives new event:\n\t{event:?}", self.id);
 
             match &self.mode {
                 Mode::LPush { key } => {
                     let Ok(key) = substitute_with_event(key, &event) else {
-                        warn!("can't generate key for event");
                         continue;
                     };
                     let value = serde_json::to_string(&event)?;
@@ -146,7 +145,6 @@ impl ComponentApi for RedisDispatcher {
                 }
                 Mode::RPush { key } => {
                     let Ok(key) = substitute_with_event(key, &event) else {
-                        warn!("can't generate key for event");
                         continue;
                     };
                     let value = serde_json::to_string(&event)?;
@@ -155,7 +153,6 @@ impl ComponentApi for RedisDispatcher {
                 }
                 Mode::Pub { channel } => {
                     let Ok(channel) = substitute_with_event(channel, &event) else {
-                        warn!("can't generate channel for event");
                         continue; 
                     };
                     let value = serde_json::to_string(&event)?;
@@ -164,7 +161,6 @@ impl ComponentApi for RedisDispatcher {
                 }
                 Mode::XADD { key } => {
                     let Ok(key) = substitute_with_event(key, &event) else {
-                        warn!("can't generate key for event");
                         continue;
                     };
                     let value = serde_json::to_string(&event)?;

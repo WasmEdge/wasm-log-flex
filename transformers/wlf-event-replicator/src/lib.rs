@@ -33,7 +33,7 @@ impl ComponentApi for EventReplicator {
 
     async fn run(&self, router: Arc<EventRouter>) -> Result<(), Box<dyn std::error::Error>> {
         while let Ok(event) = router.poll_event(self.id()).await {
-            info!("{} receives new event:\n{event:#?}", self.id);
+            info!("{} receives new event:\n\t{event:?}", self.id);
 
             for d in &self.destinations {
                 router.send_event(event.clone(), d).await?;
