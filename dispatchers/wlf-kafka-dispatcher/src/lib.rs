@@ -30,10 +30,20 @@ pub enum Error {
 
 #[derive(Deserialize, Debug)]
 pub struct KafkaDispatcher {
-    id: String,
+    pub id: String,
     #[serde(default = "default_topic")]
-    topic: String,
-    bootstrap_brokers: Vec<String>,
+    pub topic: String,
+    pub bootstrap_brokers: Vec<String>,
+    #[serde(default)]
+    pub compression_type: CompressionType,
+}
+
+#[derive(Deserialize, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum CompressionType {
+    #[default]
+    NoCompression,
+    Gzip,
+    Snappy,
 }
 
 #[async_trait]
@@ -52,6 +62,11 @@ impl ComponentApi for KafkaDispatcher {
             .await?;
         let controller_client = client.controller_client()?;
         let mut topics_cache = client.list_topics().await?;
+        let compression = match self.compression_type {
+            CompressionType::NoCompression => Compression::default(),
+            CompressionType::Snappy => Compression::Snappy,
+            CompressionType::Gzip => Compression::Gzip,
+        };
         while let Ok(event) = router.poll_event(self.id()).await {
             info!("{} receives new event:\n\t{event:?}", self.id);
 
@@ -80,9 +95,7 @@ impl ComponentApi for KafkaDispatcher {
                 headers: BTreeMap::new(),
                 timestamp: Utc::now(),
             };
-            partition_client
-                .produce(vec![record], Compression::default())
-                .await?;
+            partition_client.produce(vec![record], compression).await?;
 
             // dispatch event to corresponding kafka table
             info!("event is dispatched to topic {}", topic_name);
@@ -91,6 +104,6 @@ impl ComponentApi for KafkaDispatcher {
     }
 }
 
-fn default_topic() -> String {
+pub fn default_topic() -> String {
     "wasm-log-flex".to_string()
 }

@@ -31,6 +31,7 @@ pub struct BinlogCollector {
     #[serde(default = "default_host")]
     pub host: String,
     pub user: String,
+    #[serde(default)]
     pub password: String,
     #[serde(default = "default_port")]
     pub port: u16,

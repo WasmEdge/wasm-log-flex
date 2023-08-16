@@ -11,10 +11,10 @@ use wlf_core::{
 
 #[derive(Deserialize, Debug)]
 pub struct BinlogFilter {
-    id: String,
-    destination: String,
+    pub id: String,
+    pub destination: String,
     #[serde(flatten)]
-    rules: BinlogFilterRules,
+    pub rules: BinlogFilterRules,
 }
 
 #[derive(Error, Debug)]
@@ -55,14 +55,8 @@ pub struct BinlogFilterRules {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
 enum BinlogFilterRule {
-    Include {
-        database: String,
-        table: Option<String>,
-    },
-    Exclude {
-        database: String,
-        table: Option<String>,
-    },
+    Include { database: String, table: String },
+    Exclude { database: String, table: String },
 }
 
 impl BinlogFilterRules {
@@ -70,24 +64,18 @@ impl BinlogFilterRules {
         Self::default()
     }
 
-    pub fn include(
-        mut self,
-        database: impl Into<String>,
-        table: Option<impl Into<String>>,
-    ) -> Self {
+    pub fn include(&mut self, database: impl Into<String>, table: impl Into<String>) {
         self.rules.push(BinlogFilterRule::Include {
             database: database.into(),
-            table: table.map(|s| s.into()),
+            table: table.into(),
         });
-        self
     }
 
-    pub fn exclude(mut self, database: &str, table: Option<&str>) -> Self {
+    pub fn exclude(&mut self, database: impl Into<String>, table: impl Into<String>) {
         self.rules.push(BinlogFilterRule::Exclude {
             database: database.into(),
-            table: table.map(|s| s.into()),
+            table: table.into(),
         });
-        self
     }
 
     fn eval(&self, event: &Event) -> bool {
@@ -96,13 +84,17 @@ impl BinlogFilterRules {
                 let Some(Value::String(d)) = event.value.pointer("/database") else {
                     return st;
                 };
+                if database == "*" {
+                    return true;
+                }
+
                 if d != database {
                     return st;
                 }
 
-                let Some(table) = table else {
+                if table == "*" {
                     return true;
-                };
+                }
 
                 match event.value.pointer("/table") {
                     Some(Value::String(t)) if t == table => true,
@@ -113,13 +105,18 @@ impl BinlogFilterRules {
                 let Some(Value::String(d)) = event.value.pointer("/database") else {
                     return st;
                 };
+
+                if database == "*" {
+                    return false;
+                }
+
                 if d != database {
                     return st;
                 }
 
-                let Some(table) = table else {
+                if table == "*" {
                     return false;
-                };
+                }
 
                 match event.value.pointer("/table") {
                     Some(Value::String(t)) if t == table => false,

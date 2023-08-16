@@ -6,7 +6,7 @@ use wlf_event_replicator::EventReplicator;
 use wlf_kafka_dispatcher::KafkaDispatcher;
 use wlf_redis_dispatcher::RedisDispatcher;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 pub(crate) struct Config {
     #[serde(default)]
     pub(crate) collectors: Vec<Collector>,

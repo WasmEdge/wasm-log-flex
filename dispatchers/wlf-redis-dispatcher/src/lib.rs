@@ -24,23 +24,23 @@ pub enum Error {
 
 #[derive(Deserialize, Debug)]
 pub struct RedisDispatcher {
-    id: String,
+    pub id: String,
     #[serde(default)]
-    mode: Mode,
+    pub mode: Mode,
     // TODO: use default here after https://github.com/serde-rs/serde/issues/1626 is fixed
     #[serde(flatten)]
-    config: Config,
+    pub config: Config,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Config {
     #[serde(default = "default_host")]
-    host: String,
+    pub host: String,
     #[serde(default = "default_port")]
-    port: u16,
-    auth: Option<String>,
+    pub port: u16,
+    pub auth: Option<String>,
     #[serde(default = "default_database_number")]
-    database_number: u8,
+    pub database_number: u8,
 }
 
 impl IntoConnectionInfo for Config {
@@ -91,9 +91,17 @@ pub enum Mode {
 impl Default for Mode {
     fn default() -> Self {
         Self::RPush {
-            key: "wlf".to_string(),
+            key: default_key(),
         }
     }
+}
+
+pub fn default_key() -> String {
+    "wlf".to_string()
+}
+
+pub fn default_redis_stream_json_key() -> String {
+    "message".to_string()
 }
 
 impl RedisDispatcher {
