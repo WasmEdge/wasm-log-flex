@@ -9,6 +9,7 @@ members = [
   # dispatchers
   "dispatchers/wlf-kafka-dispatcher",
   "dispatchers/wlf-redis-dispatcher",
+  "dispatchers/wlf-elasticsearch-dispatcher",
   # others
   "utils",
   "wlf-aio",
@@ -16,3 +17,4 @@ members = [
 
 [patch.crates-io]
 mysql_cdc = { git = 'https://github.com/markcty/mysql_cdc' }
+elasticsearch = { git = 'https://github.com/markcty/elasticsearch-rs.git' }

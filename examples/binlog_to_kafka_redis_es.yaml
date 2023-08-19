@@ -1,6 +1,6 @@
 collectors:
   - id: binlog_collector
-    type: BinlogCollector
+    type: Binlog
     destination: filter
     user: root
     password: password
@@ -11,6 +11,7 @@ transformers:
     rules:
       - exclude:
           database: d1
+          table: "*"
       - include:
           database: d1
           table: t1
@@ -19,13 +20,18 @@ transformers:
     destinations:
       - redis
       - kafka
+      - elasticsearch
 dispatchers:
   - id: kafka
-    type: KafkaDispatcher
+    type: Kafka
     topic: logFlex.%{/database}.%{/table}
     bootstrap_brokers: ["127.0.0.1:9092"]
   - id: redis
-    type: RedisDispatcher
+    type: Redis
     mode:
       type: Pub
       channel: logFlex.%{/database}.%{/table}
+  - id: elasticsearch
+    type: Elasticsearch
+    url: http://localhost:9200
+    index: wlf-%{/database}-%{/table}

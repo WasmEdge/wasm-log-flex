@@ -165,7 +165,7 @@ fn convert_maxwell_java_properties_to_config(mut properties: HashMap<String, Str
                     })
                     .unwrap_or_default(),
             };
-            Dispatcher::KafkaDispatcher(dispatcher)
+            Dispatcher::Kafka(dispatcher)
         }
         "redis" => {
             let redis_key = maxwell_key_to_wlf_format(
@@ -207,16 +207,14 @@ fn convert_maxwell_java_properties_to_config(mut properties: HashMap<String, Str
                 mode: redis_mode,
                 config: redis_config,
             };
-            Dispatcher::RedisDispatcher(dispatcher)
+            Dispatcher::Redis(dispatcher)
         }
         _ => {
             panic!("unsupported producer type");
         }
     };
 
-    config
-        .collectors
-        .push(Collector::BinlogCollector(collector));
+    config.collectors.push(Collector::Binlog(collector));
     config.dispatchers.push(dispatcher);
 
     for (k, v) in properties {

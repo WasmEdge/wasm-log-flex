@@ -10,6 +10,7 @@ wlf-binlog-filter = { path = "../transformers/wlf-binlog-filter" }
 wlf-event-replicator = { path = "../transformers/wlf-event-replicator" }
 wlf-kafka-dispatcher = { path = "../dispatchers/wlf-kafka-dispatcher" }
 wlf-redis-dispatcher = { path = "../dispatchers/wlf-redis-dispatcher" }
+wlf-elasticsearch-dispatcher = { path = "../dispatchers/wlf-elasticsearch-dispatcher" }
 tokio_wasi = { version = "1", features = [
   "rt",
   "time",

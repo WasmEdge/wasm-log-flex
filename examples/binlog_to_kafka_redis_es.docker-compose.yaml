@@ -22,3 +22,11 @@ services:
     container_name: redis
     image: redis
     network_mode: host
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.9.1
+    container_name: es
+    network_mode: host
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node

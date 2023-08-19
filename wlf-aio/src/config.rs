@@ -2,6 +2,7 @@ use serde::Deserialize;
 use wlf_binlog_collector::BinlogCollector;
 use wlf_binlog_filter::BinlogFilter;
 use wlf_core::ComponentApi;
+use wlf_elasticsearch_dispatcher::ElasticsearchDispatcher;
 use wlf_event_replicator::EventReplicator;
 use wlf_kafka_dispatcher::KafkaDispatcher;
 use wlf_redis_dispatcher::RedisDispatcher;
@@ -19,13 +20,13 @@ pub(crate) struct Config {
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type")]
 pub(crate) enum Collector {
-    BinlogCollector(BinlogCollector),
+    Binlog(BinlogCollector),
 }
 
 impl Collector {
     pub(crate) fn as_component(&self) -> &dyn ComponentApi {
         match self {
-            Collector::BinlogCollector(c) => c,
+            Collector::Binlog(c) => c,
         }
     }
 }
@@ -49,15 +50,17 @@ impl Transformer {
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type")]
 pub(crate) enum Dispatcher {
-    KafkaDispatcher(KafkaDispatcher),
-    RedisDispatcher(RedisDispatcher),
+    Kafka(KafkaDispatcher),
+    Redis(RedisDispatcher),
+    Elasticsearch(ElasticsearchDispatcher),
 }
 
 impl Dispatcher {
     pub(crate) fn as_component(&self) -> &dyn ComponentApi {
         match self {
-            Dispatcher::KafkaDispatcher(d) => d,
-            Dispatcher::RedisDispatcher(d) => d,
+            Dispatcher::Kafka(d) => d,
+            Dispatcher::Redis(d) => d,
+            Dispatcher::Elasticsearch(d) => d,
         }
     }
 }
