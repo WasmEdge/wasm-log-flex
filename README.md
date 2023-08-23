@@ -12,7 +12,7 @@ Components communicate with each other using custom `Event`. They can be chained
 
 ![Architecture](assets/Architecture.png)
 
-Currently, we have the MySQL Binlog collector, the kafka and redis dispatchers, the binlog filter and event replicator transformers. 
+Currently, we have the MySQL Binlog collector, the kafka, elasticsearch and redis dispatchers, the binlog filter and event replicator transformers. 
 
 Developers can easily create their own components by implementing the `ComponentApi` trait:
 
@@ -32,19 +32,19 @@ In additional to use the library, users who just want a quick setup can use the 
 
 ## Quick Start(using `wlf-aio`)
 
-1. To use the `wlf`, use docker to initiate a local environment `docker compose -f examples/binlog_to_kafka_redis.docker-compose.yaml up -d`, which brings up a kafka, a mysql, and a redis.
+1. To use the `wlf`, use docker to initiate a local environment `docker compose -f examples/binlog_to_kafka_redis_es.docker-compose.yaml up -d`, which brings up a kafka, a mysql, a elasticsearch, and a redis.
 
 2. Build the `wlf-aio` binary: `cargo build --target=wasm32-wasi -p wlf-aio -r`.
 
 3. Install the Wasmedge WebAssembly runtime: https://wasmedge.org/docs/start/install.
 
-4. Run the example: `wasmedge --dir /configs:examples/configs target/wasm32-wasi/debug//wlf-aio.wasm --config /configs/binlog_to_kafka_redis.yaml`
+4. Run the example: `wasmedge --dir /configs:examples/configs target/wasm32-wasi/debug/wlf-aio.wasm --config /configs/binlog_to_kafka_redis_es.yaml`
 
 The example uses the following configuration:
 ```yaml
 collectors:
   - id: binlog_collector
-    type: BinlogCollector
+    type: Binlog
     destination: filter
     user: root
     password: password
@@ -55,6 +55,7 @@ transformers:
     rules:
       - exclude:
           database: d1
+          table: "*"
       - include:
           database: d1
           table: t1
@@ -63,15 +64,20 @@ transformers:
     destinations:
       - redis
       - kafka
+      - elasticsearch
 dispatchers:
   - id: kafka
-    type: KafkaDispatcher
+    type: Kafka
     topic: logFlex.%{/database}.%{/table}
     bootstrap_brokers: ["127.0.0.1:9092"]
   - id: redis
-    type: RedisDispatcher
+    type: Redis
     mode:
       type: Pub
       channel: logFlex.%{/database}.%{/table}
+  - id: elasticsearch
+    type: Elasticsearch
+    url: http://localhost:9200
+    index: wlf-%{/database}-%{/table}
 ```
-The example collects `Binlog` events from Mysql Binlog, filters and replicates them, and then forward them to both kafka and redis.
+The example collects `Binlog` events from Mysql Binlog, filters and replicates them, and then forward them to both kafka, redis, and elasticsearch.
