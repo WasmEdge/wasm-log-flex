@@ -81,3 +81,5 @@ dispatchers:
     index: wlf-%{/database}-%{/table}
 ```
 The example collects `Binlog` events from Mysql Binlog, filters and replicates them, and then forward them to both kafka, redis, and elasticsearch.
+
+`wlf-aio` also supports reading maxwell configuration directly, just use a `*.properties` file as the config argument then it will automatcially convert the maxwell config to ours.
